@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Synthetic Credits Menu Bar App
-Lite Version - Only Python Standard Library, no external dependencies
+Auto-discovers correct API endpoint
 """
 
 import urllib.request
@@ -11,31 +11,36 @@ import os
 import sys
 from datetime import datetime
 
-# Configuration
 CONFIG_FILE = os.path.expanduser("~/.synthetic_menubar_config.json")
-API_BASE = "https://api.synthetic.new/openai/v1"
+BASE_URL = "https://api.synthetic.new"
+
+# Multiple possible endpoints - will try each one
+POSSIBLE_ENDPOINTS = [
+    "/v1/quotas",
+    "/v1/usage",
+    "/v1/billing/usage",
+    "/v1/credits",
+    "/v1/account",
+    "/v1/user",
+    "/openai/v1/quotas",
+]
 
 def load_config():
-    """Load configuration from file"""
     if os.path.exists(CONFIG_FILE):
         try:
             with open(CONFIG_FILE, 'r') as f:
                 return json.load(f)
         except:
             pass
-    return {"api_key": "", "last_credits": None}
+    return {"api_key": "", "working_endpoint": None}
 
 def save_config(config):
-    """Save configuration to file"""
     with open(CONFIG_FILE, 'w') as f:
         json.dump(config, f, indent=2)
 
-def fetch_credits(api_key):
-    """Fetch credits from Synthetic API using only standard library"""
-    if not api_key:
-        return None, "No API key configured"
-    
-    url = f"{API_BASE}/quotas"
+def fetch_with_endpoint(endpoint, api_key):
+    """Try a specific endpoint"""
+    url = f"{BASE_URL}{endpoint}"
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Accept": "application/json"
@@ -45,188 +50,133 @@ def fetch_credits(api_key):
     
     try:
         with urllib.request.urlopen(req, timeout=10) as response:
-            data = json.loads(response.read().decode('utf-8'))
-            return data, None
+            return json.loads(response.read().decode('utf-8')), None
     except urllib.error.HTTPError as e:
-        if e.code == 401:
-            return None, "Unauthorized - check your API key"
-        elif e.code == 429:
-            return None, "Rate limited"
-        else:
-            return None, f"HTTP Error {e.code}"
-    except urllib.error.URLError as e:
-        return None, f"Network error: {str(e.reason)}"
+        return None, f"HTTP {e.code}"
     except Exception as e:
-        return None, f"Error: {str(e)}"
+        return None, str(e)
 
-def print_status_line(credits_data, error_msg=None):
-    """Print a simple status line (for menu bar simulation)"""
+def fetch_credits(api_key, working_endpoint=None):
+    """Auto-discover working endpoint or use cached one"""
+    if not api_key:
+        return None, "No API key configured"
+    
+    # If we have a working endpoint from before, try it first
+    if working_endpoint:
+        data, error = fetch_with_endpoint(working_endpoint, api_key)
+        if data:
+            return data, None, working_endpoint
+    
+    # Try all possible endpoints
+    print("  Discovering API endpoint...")
+    for endpoint in POSSIBLE_ENDPOINTS:
+        data, error = fetch_with_endpoint(endpoint, api_key)
+        if data:
+            return data, None, endpoint
+    
+    return None, "No working endpoint found", None
+
+def print_status(credits_data, error_msg=None, endpoint=None):
     if error_msg:
-        print(f"[ERROR] {error_msg[:40]}")
-    elif credits_data:
-        remaining = credits_data.get('credits_remaining', 0)
-        used_today = credits_data.get('credits_used_today', 0)
-        monthly_limit = credits_data.get('monthly_limit', 0)
+        print(f"❌ {error_msg}")
+        return
+    
+    if credits_data:
+        remaining = credits_data.get('credits_remaining', credits_data.get('credits', 0))
+        used_today = credits_data.get('credits_used_today', credits_data.get('used_today', 0))
+        monthly_limit = credits_data.get('monthly_limit', credits_data.get('limit', 0))
         
-        # Simple visual indicator
-        if remaining < 100:
-            icon = "🔴"
-        else:
-            icon = "💳"
+        icon = "🔴" if remaining < 100 else "💳"
         
-        print(f"{icon} Credits: {remaining} | Used today: {used_today} | Limit: {monthly_limit}")
-    else:
-        print("[UNKNOWN] Check API key")
+        print(f"\n{icon} Credits: {remaining}")
+        print(f"📊 Used today: {used_today}")
+        print(f"📈 Monthly limit: {monthly_limit}")
+        if endpoint:
+            print(f"🔗 Endpoint: {endpoint}")
 
 def show_menu():
-    """Simple CLI menu"""
     config = load_config()
+    working_endpoint = config.get("working_endpoint")
     
     while True:
         print("\n" + "="*50)
         print("Synthetic Credits Monitor")
         print("="*50)
         
-        api_key_status = "✓ Set" if config.get("api_key") else "✗ Not set"
-        print(f"\n1. Refresh credits now")
-        print(f"2. Settings (API Key: {api_key_status})")
-        print(f"3. Show last known credits")
-        print("4. Exit")
+        api_status = "✓ Set" if config.get("api_key") else "✗ Not set"
+        endpoint_status = working_endpoint or "Not discovered"
         
-        choice = input("\nSelect option (1-4): ").strip()
+        print(f"\n1. Refresh credits now")
+        print(f"2. Settings (API Key: {api_status})")
+        print(f"3. Show last known credits")
+        print(f"4. Test all endpoints")
+        print("5. Exit")
+        
+        choice = input("\nSelect option (1-5): ").strip()
         
         if choice == "1":
             print("\nFetching credits...")
-            data, error = fetch_credits(config.get("api_key", ""))
+            data, error, endpoint = fetch_credits(config.get("api_key", ""), working_endpoint)
             if error:
                 print(f"❌ {error}")
             else:
-                print_status_line(data)
+                print_status(data, endpoint=endpoint)
                 config["last_credits"] = data
+                if endpoint:
+                    config["working_endpoint"] = endpoint
+                    working_endpoint = endpoint
                 save_config(config)
         
         elif choice == "2":
             print("\n" + "-"*50)
             current_key = config.get("api_key", "")
             if current_key:
-                masked = "*" * (len(current_key) - 4) + current_key[-4:] if len(current_key) > 4 else "*" * len(current_key)
-                print(f"Current API key: {masked}")
-            else:
-                print("No API key configured")
+                masked = "*" * (len(current_key) - 4) + current_key[-4:] if len(current_key) > 4 else ""
+                print(f"Current API key: {masked or '*'}")
             
-            new_key = input("Enter new API key (or press Enter to keep current): ").strip()
+            new_key = input("\nEnter new API key: ").strip()
             if new_key:
                 config["api_key"] = new_key
+                config["working_endpoint"] = None  # Reset endpoint discovery
                 save_config(config)
-                print("✓ API key saved")
-            elif new_key == "" and current_key:
-                # Clear key
-                config["api_key"] = ""
-                save_config(config)
-                print("✓ API key cleared")
+                print("✓ API key saved!")
         
         elif choice == "3":
             if config.get("last_credits"):
                 print("\nLast known credits:")
-                print_status_line(config["last_credits"])
+                print_status(config["last_credits"])
             else:
                 print("No cached data. Please refresh first.")
         
         elif choice == "4":
+            if not config.get("api_key"):
+                print("No API key configured!")
+                continue
+            
+            print("\n" + "="*50)
+            print("Testing all possible endpoints...")
+            print("="*50 + "\n")
+            
+            for endpoint in POSSIBLE_ENDPOINTS:
+                print(f"Testing {endpoint}...", end=" ")
+                data, error = fetch_with_endpoint(endpoint, config["api_key"])
+                if data:
+                    print("✅ WORKS!")
+                    print(f"   Data: {json.dumps(data, indent=2)[:100]}...")
+                    config["working_endpoint"] = endpoint
+                    save_config(config)
+                    break
+                else:
+                    print(f"❌ {error}")
+            
+            print("\n" + "="*50)
+        
+        elif choice == "5":
             print("\nGoodbye!")
             break
         
         else:
             print("Invalid option")
 
-def auto_refresh_mode():
-    """Auto-refresh mode (prints status every 5 minutes)"""
-    config = load_config()
-    
-    import time
-    
-    if not config.get("api_key"):
-        print("No API key configured. Please run with --setup first.")
-        sys.exit(1)
-    
-    print("Auto-refresh mode started. Press Ctrl+C to stop.")
-    print("Checking credits every 5 minutes...\n")
-    
-    while True:
-        data, error = fetch_credits(config["api_key"])
-        timestamp = datetime.now().strftime("%H:%M:%S")
-        
-        if error:
-            print(f"[{timestamp}] ❌ {error}")
-        else:
-            remaining = data.get('credits_remaining', 0)
-            if remaining < 100:
-                print(f"[{timestamp}] 🔴 LOW CREDITS: {remaining}")
-            else:
-                print(f"[{timestamp}] 💳 Credits: {remaining}")
-            
-            # Save to config
-            config["last_credits"] = data
-            save_config(config)
-        
-        try:
-            time.sleep(300)  # 5 minutes
-        except KeyboardInterrupt:
-            print("\n\nStopping...")
-            break
-
-def main():
-    """Main entry point"""
-    import argparse
-    parser = argparse.ArgumentParser(description='Synthetic Credits Monitor')
-    parser.add_argument('--setup', action='store_true', help='Initial setup')
-    parser.add_argument('--auto', action='store_true', help='Auto-refresh mode')
-    parser.add_argument('--once', action='store_true', help='Fetch once and exit')
-    
-    args = parser.parse_args()
-    
-    if args.once:
-        config = load_config()
-        data, error = fetch_credits(config.get("api_key", ""))
-        if error:
-            print(f"Error: {error}")
-            sys.exit(1)
-        else:
-            print_status_line(data)
-    
-    elif args.auto:
-        auto_refresh_mode()
-    
-    elif args.setup:
-        config = load_config()
-        print("Synthetic Credits Monitor - Setup")
-        print("="*50)
-        
-        current_key = config.get("api_key", "")
-        if current_key:
-            masked = "*" * (len(current_key) - 4) + current_key[-4:]
-            print(f"Current API key: {masked}")
-        
-        new_key = input("\nEnter your Synthetic API key: ").strip()
-        if new_key:
-            config["api_key"] = new_key
-            save_config(config)
-            print("\n✓ API key saved!")
-            
-            # Test it
-            print("\nTesting API connection...")
-            data, error = fetch_credits(new_key)
-            if error:
-                print(f"❌ Test failed: {error}")
-            else:
-                print("✓ Connection successful!")
-                print_status_line(data)
-        else:
-            print("No key entered. Setup cancelled.")
-    
-    else:
-        # Interactive menu mode
-        show_menu()
-
 if __name__ == "__main__":
-    main()
+    show_menu()
