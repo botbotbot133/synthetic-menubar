@@ -9,10 +9,15 @@ import urllib.request
 import urllib.error
 import json
 import os
+import sys
+import argparse
+import subprocess
 from datetime import datetime, timezone
 
 CONFIG_FILE = os.path.expanduser("~/.synthetic_menubar_config.json")
 API_ENDPOINT = "https://api.synthetic.new/v2/quotas"
+LAUNCHAGENT_SOURCE = "/opt/homebrew/share/synthetic-menubar/com.botbotbot133.synthetic-menubar.plist"
+LAUNCHAGENT_DEST = os.path.expanduser("~/Library/LaunchAgents/com.botbotbot133.synthetic-menubar.plist")
 
 
 class SyntheticMenuBarApp(rumps.App):
@@ -135,14 +140,13 @@ class SyntheticMenuBarApp(rumps.App):
         rolling = self.data.get("rollingFiveHourLimit", {})
         weekly = self.data.get("weeklyTokenLimit", {})
         
-        # Calculate remaining percentages
+        # Calculate REMAINING %
         remaining_5h = rolling.get("remaining", 0)
         max_5h = rolling.get("max", 1)
         five_percent = (remaining_5h / max_5h * 100) if max_5h > 0 else 0
         
         weekly_remaining = weekly.get("percentRemaining", 0)
         
-        # Get regeneration times
         five_regen = self.format_time_until(rolling.get("nextTickAt", ""))
         weekly_regen = self.format_time_until(weekly.get("nextRegenAt", ""))
         
@@ -281,11 +285,174 @@ class SyntheticMenuBarApp(rumps.App):
         rumps.quit_application()
 
 
-def main():
+def run_setup():
+    """Interactive setup to configure API key"""
+    print("="*50)
+    print("Synthetic Menu Bar - Setup")
+    print("="*50)
+    print()
+    print("Enter your Synthetic API key:")
+    
+    api_key = input("> ").strip()
+    
+    if api_key:
+        config = {
+            'api_key': api_key,
+            'refresh_interval': 120,
+            'detailed_view': True
+        }
+        
+        with open(CONFIG_FILE, 'w') as f:
+            json.dump(config, f, indent=2)
+        
+        print(f"✓ Config saved to {CONFIG_FILE}")
+        print("\nYou can now run: synthetic-menubar")
+        return True
+    else:
+        print("❌ No API key entered. Setup cancelled.")
+        return False
+
+
+def install_launchagent():
+    """Install and load the LaunchAgent for auto-start"""
+    print("="*50)
+    print("Installing LaunchAgent for auto-start")
+    print("="*50)
+    
+    # Check if source plist exists
+    if not os.path.exists(LAUNCHAGENT_SOURCE):
+        print(f"❌ Source plist not found: {LAUNCHAGENT_SOURCE}")
+        print("   Install via: brew install synthetic-menubar")
+        return False
+    
+    # Create LaunchAgents directory if needed
+    launchagents_dir = os.path.expanduser("~/Library/LaunchAgents")
+    if not os.path.exists(launchagents_dir):
+        print(f"✓ Creating {launchagents_dir}")
+        os.makedirs(launchagents_dir)
+    
+    # Check if already exists
+    if os.path.exists(LAUNCHAGENT_DEST):
+        print(f"⚠️  LaunchAgent already exists at {LAUNCHAGENT_DEST}")
+        print("   Reloading...")
+        subprocess.run(["launchctl", "unload", LAUNCHAGENT_DEST], capture_output=True)
+    else:
+        print(f"✓ Copying LaunchAgent...")
+        subprocess.run(["cp", LAUNCHAGENT_SOURCE, LAUNCHAGENT_DEST], check=True)
+    
+    # Load the LaunchAgent
+    print(f"✓ Loading LaunchAgent...")
+    result = subprocess.run(["launchctl", "load", LAUNCHAGENT_DEST], capture_output=True, text=True)
+    
+    if result.returncode == 0:
+        print("✅ LaunchAgent installed and loaded!")
+        print("\nThe app will now auto-start on login.")
+        return True
+    else:
+        print(f"❌ Failed to load LaunchAgent: {result.stderr}")
+        return False
+
+
+def run_auto():
+    """Auto setup: configure if needed, install LaunchAgent, start app"""
+    print("="*50)
+    print("Synthetic Menu Bar - Auto Setup")
+    print("="*50)
+    print()
+    
+    # Check if config exists
+    config = {}
+    if os.path.exists(CONFIG_FILE):
+        try:
+            with open(CONFIG_FILE, 'r') as f:
+                config = json.load(f)
+        except:
+            pass
+    
+    # Step 1: Setup API key if needed
+    if not config.get('api_key'):
+        print("🔑 Step 1: API Key Setup")
+        print("-" * 50)
+        if not run_setup():
+            return False
+        # Reload config after setup
+        with open(CONFIG_FILE, 'r') as f:
+            config = json.load(f)
+    else:
+        print("✓ API key already configured")
+    
+    # Step 2: Install LaunchAgent if needed
+    print("\n🚀 Step 2: LaunchAgent Setup")
+    print("-" * 50)
+    
+    if os.path.exists(LAUNCHAGENT_DEST):
+        print("✓ LaunchAgent already installed")
+        # Make sure it's loaded
+        result = subprocess.run(["launchctl", "list"], capture_output=True, text=True)
+        if "com.botbotbot133.synthetic-menubar" in result.stdout:
+            print("✓ LaunchAgent already running")
+        else:
+            print("⚠️  LaunchAgent not running, reloading...")
+            subprocess.run(["launchctl", "load", LAUNCHAGENT_DEST], capture_output=True)
+    else:
+        if install_launchagent():
+            print("✓ LaunchAgent installed and started")
+        else:
+            print("⚠️  LaunchAgent setup failed, but app will still run")
+    
+    # Step 3: Start the app
+    print("\n💳 Step 3: Starting Synthetic Menu Bar")
+    print("-" * 50)
+    print("Starting app...")
+    print()
+    
+    # Actually start the app
+    main(run_app=True)
+    
+    return True
+
+
+def main(run_app=False):
     """Entry point for command line execution"""
-    app = SyntheticMenuBarApp()
-    app.run()
+    
+    # Check if running in standalone mode (not from --auto which already printed)
+    if len(sys.argv) <= 1 or sys.argv[1] not in ['--setup', '--auto']:
+        # Check for config, if not exist, show setup message
+        if not os.path.exists(CONFIG_FILE):
+            print("⚠️  No config found. Run: synthetic-menubar --setup")
+            print("    Or: synthetic-menubar --auto")
+            sys.exit(1)
+    
+    if run_app or len(sys.argv) == 1:
+        # Normal mode - just run the app
+        app = SyntheticMenuBarApp()
+        app.run()
 
 
 if __name__ == "__main__":
-    main()
+    # Parse command line arguments
+    if len(sys.argv) > 1:
+        if sys.argv[1] == '--setup':
+            run_setup()
+        elif sys.argv[1] == '--auto':
+            run_auto()
+        elif sys.argv[1] == '--help' or sys.argv[1] == '-h':
+            print("Synthetic Menu Bar - Usage:")
+            print()
+            print("  synthetic-menubar           Run the app (requires setup first)")
+            print("  synthetic-menubar --setup   Configure API key")
+            print("  synthetic-menubar --auto    Auto setup and start (recommended)")
+            print("  synthetic-menubar --help   Show this help")
+            print()
+            print("Examples:")
+            print("  # First time setup")")
+            print("  synthetic-menubar --setup")
+            print()
+            print("  # Or use auto for everything")")
+            print("  synthetic-menubar --auto")
+        else:
+            print(f"Unknown option: {sys.argv[1]}")
+            print("Run 'synthetic-menubar --help' for usage")
+            sys.exit(1)
+    else:
+        main()
