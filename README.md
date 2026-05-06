@@ -1,6 +1,6 @@
 # Synthetic Credits Monitor
 
-Simple Python script to check Synthetic API credits — no external dependencies.
+Simple Python script to check Synthetic API subscription usage — no external dependencies.
 
 ## Installation
 
@@ -14,22 +14,35 @@ python3 synthetic_menubar.py
 
 1. Run the script
 2. Enter your Synthetic API key
-3. See your credits!
+3. See your subscription usage
 
-## API Endpoint
+## API
 
-Uses: `GET https://api.synthetic.new/v2/quotas`
+**Endpoint:** `GET https://api.synthetic.new/v2/quotas`
 
-Returns:
-- `credits_remaining` — Available credits
-- `credits_used_today` — Today's usage
-- `monthly_limit` — Monthly limit
+**Authentication:** Bearer token
+
+**Response format:**
+```json
+{
+  "subscription": {
+    "limit": 135,
+    "requests": 0,
+    "renewsAt": "2025-09-21T14:36:14.288Z"
+  }
+}
+```
+
+**Fields:**
+- `subscription.limit` — Monthly request limit
+- `subscription.requests` — Requests used this period
+- `subscription.renewsAt` — Renewal timestamp
 
 ## Requirements
 
 - Python 3.7+
 - Synthetic API key
 
-## No Dependencies!
+## No External Dependencies
 
-Just Python standard library — no `pip install` needed.
+Uses only Python standard library — no `pip install` needed.
