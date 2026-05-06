@@ -1,6 +1,6 @@
 # Synthetic Credits Menu Bar App
 
-Real-time macOS menu bar monitor for Synthetic API usage. Auto-starts on login.
+Real-time macOS menu bar monitor for Synthetic API usage. Auto-starts on login with virtual environment support.
 
 ## Features
 
@@ -11,36 +11,81 @@ Real-time macOS menu bar monitor for Synthetic API usage. Auto-starts on login.
 - 🔘 **Click for details** — Full info on both metrics
 - 📊 **Smart notifications** — Alerts when data changes significantly
 - 💾 **Persistent settings** — Saves API key and refresh interval
+- 🐍 **Virtual environment** — Uses venv for isolated dependencies
 
-## Quick Start
+## Requirements
 
-### 1. Install
+- macOS 10.14+
+- Python 3.7+
+- **Virtual environment** (venv) — Required for LaunchAgent
+
+## Quick Start (with venv)
+
+### 1. Clone & Setup venv
 
 ```bash
 git clone https://github.com/botbotbot133/synthetic-menubar.git
 cd synthetic-menubar
-pip3 install -r requirements.txt
+
+# Create virtual environment (REQUIRED for LaunchAgent)
+python3 -m venv venv
+
+# Activate venv
+source venv/bin/activate
+
+# Install dependencies in venv
+pip install rumps
 ```
 
-### 2. Run Once (to test)
+### 2. Test Run (in venv)
 
 ```bash
+# Make sure venv is active (you'll see (venv) in prompt)
 python3 synthetic_menubar_app.py
 ```
+
 - Click **Settings** → Enter your Synthetic API key
 - Click **Refresh Interval** → Set to `120` (2 minutes)
 - The app appears in your menu bar! 💳
 
-### 3. Enable Auto-Start (Optional but recommended)
+### 3. Enable Auto-Start (Recommended)
 
-To automatically start on login:
+The LaunchAgent **requires** the venv. Our install script auto-detects it:
 
 ```bash
-chmod +x install_launchagent.sh
+# Make sure you're in the repo directory with venv
 ./install_launchagent.sh
 ```
 
+The script will:
+- ✅ Auto-detect your venv (`venv/`, `.venv/`, or `env/`)
+- ✅ Configure LaunchAgent to use venv Python
+- ✅ Start immediately
+- ✅ Auto-start on login
+
 **Done!** The app will now auto-start every time you login.
+
+## Important: Virtual Environment
+
+⚠️ **Why venv is required:**
+
+The LaunchAgent runs **independently** of your terminal. It cannot access packages installed via `pip3 install --user` or system packages. **It MUST use a venv.**
+
+### If you didn't use venv:
+
+You may see errors like:
+```
+ModuleNotFoundError: No module named 'rumps'
+```
+
+**Fix:** Create venv and reinstall:
+```bash
+cd ~/synthetic-menubar
+python3 -m venv venv
+source venv/bin/activate
+pip install rumps
+./install_launchagent.sh
+```
 
 ## Menu Bar Display
 
@@ -58,19 +103,31 @@ chmod +x install_launchagent.sh
 └────────────────────────────────┘
 ```
 
+## Configure Refresh Interval
+
+1. Click **⏱️ Refresh Interval** in menu
+2. Enter seconds:
+   - `60` = 1 minute
+   - `120` = 2 minutes (default)
+   - `300` = 5 minutes
+   - Minimum: `10` seconds
+3. Timer restarts automatically
+
 ## Auto-Start on Login (LaunchAgent)
 
 The included `install_launchagent.sh` script sets up auto-start:
 
 ```bash
+# Auto-detects venv and configures LaunchAgent
 ./install_launchagent.sh
 ```
 
-**What it does:**
-- Creates a macOS LaunchAgent
-- Auto-starts on login
-- Keeps running in background
-- Restarts if it crashes
+**Features:**
+- ✅ Auto-detects venv directory
+- ✅ Configures LaunchAgent with venv Python
+- ✅ Starts immediately
+- ✅ Auto-starts on login
+- ✅ Restarts if it crashes
 
 **Manage the LaunchAgent:**
 
@@ -89,16 +146,6 @@ tail -f /tmp/synthetic-menubar.log
 cat /tmp/synthetic-menubar.error.log
 ```
 
-## Configure Refresh Interval
-
-1. Click **⏱️ Refresh Interval** in menu
-2. Enter seconds:
-   - `60` = 1 minute
-   - `120` = 2 minutes (default)
-   - `300` = 5 minutes
-   - Minimum: `10` seconds
-3. Timer restarts automatically
-
 ## Details Shown
 
 ### 5-Hour Limit
@@ -113,27 +160,30 @@ cat /tmp/synthetic-menubar.error.log
 
 ## Files
 
-- `synthetic_menubar_app.py` — Main application
-- `install_launchagent.sh` — Setup auto-start on login
-- `com.botbotbot133.synthetic-menubar.plist` — LaunchAgent config
-- `requirements.txt` — Dependencies (rumps)
-- `~/.synthetic_menubar_config.json` — Settings (API key, interval)
-
-## Requirements
-
-- macOS 10.14+
-- Python 3.7+
-- `rumps` library (`pip3 install rumps`)
-
-## API
-
-Uses: `GET https://api.synthetic.new/v2/quotas`
+```
+synthetic-menubar/
+├── synthetic_menubar_app.py              # Main application
+├── venv/                                 # Virtual environment (auto-created)
+├── install_launchagent.sh                # Setup auto-start
+├── com.botbotbot133.synthetic-menubar.plist  # LaunchAgent template
+├── requirements.txt                      # Dependencies
+└── README.md                             # This file
+```
 
 ## Troubleshooting
 
-### "rumps not found"
+### "No virtual environment found"
 ```bash
-pip3 install rumps
+# Create venv
+cd ~/synthetic-menubar
+python3 -m venv venv
+
+# Activate and install
+source venv/bin/activate
+pip install rumps
+
+# Re-run install
+./install_launchagent.sh
 ```
 
 ### LaunchAgent not working
@@ -141,15 +191,23 @@ pip3 install rumps
 # Check logs
 cat /tmp/synthetic-menubar.error.log
 
-# Reload
+# Common issue: venv not detected
+# Re-run install script:
+./install_launchagent.sh
+```
+
+### "ModuleNotFoundError: No module named 'rumps'"
+You installed rumps outside venv. Inside the repo:
+```bash
+source venv/bin/activate
+pip install rumps
 launchctl unload ~/Library/LaunchAgents/com.botbotbot133.synthetic-menubar.plist
 launchctl load ~/Library/LaunchAgents/com.botbotbot133.synthetic-menubar.plist
 ```
 
-### App not showing
-- Check Activity Monitor → search "Python"
-- Check logs: `tail -f /tmp/synthetic-menubar.log`
-- Restart: `python3 synthetic_menubar_app.py`
+## API
+
+Uses: `GET https://api.synthetic.new/v2/quotas`
 
 ## Uninstall
 
