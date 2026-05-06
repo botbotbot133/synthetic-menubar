@@ -33,8 +33,8 @@ class SyntheticMenuBarApp(rumps.App):
     
     def build_menu(self):
         self.menu = [
-            "⏰ 5-Hour: --% (in --)",
-            "💰 Weekly: --% (in --)",
+            "⏰ 5-Hour: --% left (regen in -- min)",
+            "💰 Weekly: --% left (regen in --)",
             None,
             "⏱️ Refresh Interval",
             "🔄 Refresh Now",
@@ -84,7 +84,6 @@ class SyntheticMenuBarApp(rumps.App):
             return None, str(e)
     
     def format_time_until(self, iso_timestamp):
-        """Calculate time until given timestamp"""
         try:
             target = datetime.fromisoformat(iso_timestamp.replace('Z', '+00:00'))
             now = datetime.now(timezone.utc)
@@ -120,40 +119,43 @@ class SyntheticMenuBarApp(rumps.App):
         rolling = self.data.get("rollingFiveHourLimit", {})
         weekly = self.data.get("weeklyTokenLimit", {})
         
-        # 5-Hour data
-        five_percent = rolling.get("tickPercent", 0) * 100 if rolling.get("tickPercent") else 0
-        five_regen = self.format_time_until(rolling.get("nextTickAt", ""))
+        # *** FIX *** - Calculate REMAINING %, not tickPercent!
+        remaining_5h = rolling.get("remaining", 0)
+        max_5h = rolling.get("max", 1)
+        five_percent = (remaining_5h / max_5h * 100) if max_5h > 0 else 0
         
-        # Weekly data  
-        weekly_percent = weekly.get("percentRemaining", 0) if weekly.get("percentRemaining") else 0
+        weekly_remaining = weekly.get("percentRemaining", 0)
+        
+        five_regen = self.format_time_until(rolling.get("nextTickAt", ""))
         weekly_regen = self.format_time_until(weekly.get("nextRegenAt", ""))
         
-        # Compact title: "⚡97%↻5m|💵73%↻2h" or similar
-        self.title = f"⚡{five_percent:.0f}%({five_regen})|💵{weekly_percent:.0f}%({weekly_regen})"
+        # Menu bar title shows REMAINING %
+        self.title = f"⚡{five_percent:.0f}%({five_regen})|💵{weekly_remaining:.0f}%({weekly_regen})"
         
-        # Also update menu items
-        self.menu[0] = f"⏰ 5-Hour: {five_percent:.1f}% (regen in {five_regen})"
-        self.menu[1] = f"💰 Weekly: {weekly_percent:.1f}% (regen in {weekly_regen})"
+        # Menu items
+        self.menu[0] = f"⏰ 5-Hour: {five_percent:.1f}% left (regen in {five_regen})"
+        self.menu[1] = f"💰 Weekly: {weekly_remaining:.1f}% left (regen in {weekly_regen})"
     
-    @rumps.clicked("⏰ 5-Hour: --% (in --)")
+    @rumps.clicked("⏰ 5-Hour: --% left (regen in -- min)",)
     def show_5hour(self, _):
         if self.data and "rollingFiveHourLimit" in self.data:
             rolling = self.data["rollingFiveHourLimit"]
-            percent = rolling.get("tickPercent", 0) * 100
             remaining = rolling.get("remaining", 0)
             max_val = rolling.get("max", 0)
+            percent = (remaining / max_val * 100) if max_val > 0 else 0
+            tick_amount = rolling.get("tickPercent", 0) * 100  # How much regenerates
             regen = self.format_time_until(rolling.get("nextTickAt", ""))
             
             rumps.alert(
                 "⏰ 5-Hour Limit",
-                f"✅ {percent:.1f}% remaining\n"
-                f"💳 {remaining:.0f} / {max_val} requests\n"
-                f"🔄 Regenerates in: {regen}"
+                f"✅ {percent:.1f}% remaining ({remaining:.0f}/{max_val})\n"
+                f"🔄 Regen in: {regen}\n"
+                f"➕ +{tick_amount:.1f}% per tick"
             )
         else:
-            rumps.alert("No Data", "Waiting for first refresh...")
+            rumps.alert("No Data", "Waiting...")
     
-    @rumps.clicked("💰 Weekly: --% (in --)")
+    @rumps.clicked("💰 Weekly: --% left (regen in --)",)
     def show_weekly(self, _):
         if self.data and "weeklyTokenLimit" in self.data:
             weekly = self.data["weeklyTokenLimit"]
@@ -166,10 +168,10 @@ class SyntheticMenuBarApp(rumps.App):
                 "💰 Weekly Credits",
                 f"✅ {percent:.1f}% remaining\n"
                 f"💵 {remaining} / {max_credits}\n"
-                f"🔄 Regenerates in: {regen}"
+                f"🔄 Regen in: {regen}"
             )
         else:
-            rumps.alert("No Data", "Waiting for first refresh...")
+            rumps.alert("No Data", "Waiting...")
     
     @rumps.clicked("🔄 Refresh Now")
     def manual_refresh(self, _):
@@ -224,7 +226,7 @@ class SyntheticMenuBarApp(rumps.App):
         rumps.alert(
             "About",
             "Synthetic Credits Monitor v1.0\n\n"
-            "Shows 5-hour and weekly credit usage\n"
+            "Shows remaining credits with regen times\n"
             f"Refresh: {self.refresh_interval}s"
         )
     
