@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-Synthetic Credits Menu Bar App with Detailed View Toggle
+Synthetic Credits Menu Bar App
+Uses rumps to display in macOS menu bar
 """
 
 import rumps
@@ -26,8 +27,8 @@ class SyntheticMenuBarApp(rumps.App):
         self.timer = None
         self.data = None
         
-        # Build menu (call after super().__init__)
-        self.build_menu()
+        # Build menu ONCE at start
+        self._build_menu()
         
         # Start if API key exists
         if self.api_key:
@@ -36,25 +37,33 @@ class SyntheticMenuBarApp(rumps.App):
         else:
             self.title = "❌ Setup"
     
-    def build_menu(self):
+    def _build_menu(self):
         """Build menu with current state"""
-        detailed_status = "✓ ON" if self.detailed_view else "✗ OFF"
+        self.clear_menu()
         
+        # Add regular menu items
         self.menu = [
             rumps.MenuItem("⏰ 5-Hour", callback=self.show_5hour),
             rumps.MenuItem("💰 Weekly", callback=self.show_weekly),
             None,  # Separator
-            rumps.MenuItem(f"📊 Detailed View: {detailed_status}", callback=self.toggle_detailed),
-            rumps.MenuItem("⏱️ Refresh Interval", callback=self.change_interval),
-            rumps.MenuItem("🔄 Refresh Now", callback=self.manual_refresh),
-            rumps.MenuItem("⚙️ Settings", callback=self.settings),
-            None,  # Separator
-            rumps.MenuItem("ℹ️ About", callback=self.about),
-            rumps.MenuItem("🚪 Quit", callback=self.quit_app),
         ]
+        
+        # Add toggle button with current status
+        status = "✓ ON" if self.detailed_view else "✗ OFF"
+        self.menu.add(rumps.MenuItem(f"📊 Detailed View: {status}", callback=self.toggle_detailed_view))
+        
+        # Add remaining items
+        self.menu.add(rumps.MenuItem("⏱️ Refresh Interval", callback=self.change_interval))
+        self.menu.add(rumps.MenuItem("🔄 Refresh Now", callback=self.manual_refresh))
+        self.menu.add(rumps.MenuItem("⚙️ Settings", callback=self.settings))
+        self.menu.add(rumps.MenuItem("ℹ️ About", callback=self.about))
+        self.menu.add(rumps.MenuItem("🚪 Quit", callback=self.quit_app))
+        
+        # Add 5-hour and weekly click handlers
+        self.menu['⏰ 5-Hour'].set_callback(self.show_5hour)
+        self.menu['💰 Weekly'].set_callback(self.show_weekly)
     
     def load_config(self):
-        """Load config from file"""
         if os.path.exists(CONFIG_FILE):
             try:
                 with open(CONFIG_FILE, 'r') as f:
@@ -64,19 +73,16 @@ class SyntheticMenuBarApp(rumps.App):
         return {'api_key': '', 'refresh_interval': 120, 'detailed_view': True}
     
     def save_config(self):
-        """Save config to file"""
         with open(CONFIG_FILE, 'w') as f:
             json.dump(self.config, f, indent=2)
     
     def start_refresh_timer(self):
-        """Start refresh timer"""
         if self.timer:
             self.timer.stop()
         self.timer = rumps.Timer(self.refresh, self.refresh_interval)
         self.timer.start()
     
     def fetch_data(self):
-        """Fetch data from API"""
         if not self.api_key:
             return None, "No API key"
         
@@ -96,12 +102,12 @@ class SyntheticMenuBarApp(rumps.App):
         except Exception as e:
             return None, str(e)
     
-    def format_time(self, iso_timestamp):
-        """Format time until regeneration"""
+    def format_time_until(self, iso_timestamp):
         try:
             target = datetime.fromisoformat(iso_timestamp.replace('Z', '+00:00'))
             now = datetime.now(timezone.utc)
             diff = target - now
+            
             minutes = int(diff.total_seconds() / 60)
             
             if minutes < 60:
@@ -114,7 +120,6 @@ class SyntheticMenuBarApp(rumps.App):
             return "?"
     
     def refresh(self, _):
-        """Refresh data"""
         data, error = self.fetch_data()
         
         if error:
@@ -124,7 +129,6 @@ class SyntheticMenuBarApp(rumps.App):
             self.update_display()
     
     def update_display(self):
-        """Update menu bar display"""
         if not self.data:
             return
         
@@ -136,31 +140,27 @@ class SyntheticMenuBarApp(rumps.App):
         max_5h = rolling.get("max", 1)
         five_percent = (remaining_5h / max_5h * 100) if max_5h > 0 else 0
         
-        weekly_percent = weekly.get("percentRemaining", 0)
+        weekly_remaining = weekly.get("percentRemaining", 0)
         
         # Get regeneration times
-        five_regen = self.format_time(rolling.get("nextTickAt", ""))
-        weekly_regen = self.format_time(weekly.get("nextRegenAt", ""))
+        five_regen = self.format_time_until(rolling.get("nextTickAt", ""))
+        weekly_regen = self.format_time_until(weekly.get("nextRegenAt", ""))
         
-        # *** TOGGLE: Detailed vs Simple ***
+        # Toggle between detailed and simplified view
         if self.detailed_view:
-            # Detailed: Show % AND regen times in title
-            self.title = f"⚡{five_percent:.0f}%({five_regen})|💵{weekly_percent:.0f}%({weekly_regen})"
+            self.title = f"⚡{five_percent:.0f}%({five_regen})|💵{weekly_remaining:.0f}%({weekly_regen})"
         else:
-            # Simple: Show ONLY percentages
-            self.title = f"⚡{five_percent:.0f}%|💵{weekly_percent:.0f}%"
+            self.title = f"⚡{five_percent:.0f}%|💵{weekly_remaining:.0f}%"
         
-        # Update menu items (always show details)
+        # Update menu item titles
         for item in self.menu:
             if isinstance(item, rumps.MenuItem):
                 if "⏰ 5-Hour" in item.title:
                     item.title = f"⏰ 5-Hour: {five_percent:.1f}% (regen {five_regen})"
                 elif "💰 Weekly" in item.title:
-                    item.title = f"💰 Weekly: {weekly_percent:.1f}% (regen {weekly_regen})"
+                    item.title = f"💰 Weekly: {weekly_remaining:.1f}% (regen {weekly_regen})"
     
-    # *** CALLBACKS ***
-    
-    def toggle_detailed(self, _):
+    def toggle_detailed_view(self, _):
         """Toggle detailed view mode"""
         self.detailed_view = not self.detailed_view
         self.config['detailed_view'] = self.detailed_view
@@ -181,55 +181,50 @@ class SyntheticMenuBarApp(rumps.App):
         detail_text = "with regen times" if self.detailed_view else "percent only"
         rumps.notification("Synthetic", f"📊 {mode} mode", detail_text)
         
-        print(f"Detailed view: {self.detailed_view}")
-    
+    @rumps.clicked("⏰ 5-Hour")
     def show_5hour(self, _):
-        """Show 5-hour details"""
-        if not self.data:
-            rumps.alert("No Data", "Refresh first")
-            return
-        
-        rolling = self.data.get("rollingFiveHourLimit", {})
-        remaining = rolling.get("remaining", 0)
-        max_val = rolling.get("max", 0)
-        percent = (remaining / max_val * 100) if max_val > 0 else 0
-        tick_amount = rolling.get("tickPercent", 0) * 100
-        regen = self.format_time(rolling.get("nextTickAt", ""))
-        
-        rumps.alert(
-            "⏰ 5-Hour Limit",
-            f"✅ {percent:.1f}% remaining\n"
-            f"💳 {remaining:.0f} / {max_val} requests\n"
-            f"🔄 Regenerates in: {regen}\n"
-            f"➕ +{tick_amount:.1f}% per tick"
-        )
+        if self.data and "rollingFiveHourLimit" in self.data:
+            rolling = self.data["rollingFiveHourLimit"]
+            remaining = rolling.get("remaining", 0)
+            max_val = rolling.get("max", 0)
+            percent = (remaining / max_val * 100) if max_val > 0 else 0
+            tick_amount = rolling.get("tickPercent", 0) * 100
+            regen = self.format_time_until(rolling.get("nextTickAt", ""))
+            
+            rumps.alert(
+                "⏰ 5-Hour Limit",
+                f"✅ {percent:.1f}% remaining\n"
+                f"🔄 Regen in: {regen}\n"
+                f"➕ +{tick_amount:.1f}% per tick"
+            )
+        else:
+            rumps.alert("No Data", "Waiting...")
     
+    @rumps.clicked("💰 Weekly")
     def show_weekly(self, _):
-        """Show weekly details"""
-        if not self.data:
-            rumps.alert("No Data", "Refresh first")
-            return
-        
-        weekly = self.data.get("weeklyTokenLimit", {})
-        percent = weekly.get("percentRemaining", 0)
-        remaining = weekly.get("remainingCredits", "N/A")
-        max_credits = weekly.get("maxCredits", "N/A")
-        regen = self.format_time(weekly.get("nextRegenAt", ""))
-        
-        rumps.alert(
-            "💰 Weekly Credits",
-            f"✅ {percent:.1f}% remaining\n"
-            f"💵 {remaining} / {max_credits}\n"
-            f"🔄 Regenerates in: {regen}"
-        )
+        if self.data and "weeklyTokenLimit" in self.data:
+            weekly = self.data["weeklyTokenLimit"]
+            percent = weekly.get("percentRemaining", 0)
+            remaining = weekly.get("remainingCredits", "N/A")
+            max_credits = weekly.get("maxCredits", "N/A")
+            regen = self.format_time_until(weekly.get("nextRegenAt", ""))
+            
+            rumps.alert(
+                "💰 Weekly Credits",
+                f"✅ {percent:.1f}% remaining\n"
+                f"💵 {remaining} / {max_credits}\n"
+                f"🔄 Regen in: {regen}"
+            )
+        else:
+            rumps.alert("No Data", "Waiting...")
     
+    @rumps.clicked("🔄 Refresh Now")
     def manual_refresh(self, _):
-        """Manual refresh"""
         self.refresh(None)
-        rumps.notification("Synthetic", "✓ Refreshed", f"Next in {self.refresh_interval}s")
+        rumps.notification("Synthetic", "Refreshed!", f"Next in {self.refresh_interval}s")
     
+    @rumps.clicked("⏱️ Refresh Interval")
     def change_interval(self, _):
-        """Change refresh interval"""
         window = rumps.Window(
             "Refresh Interval",
             f"Current: {self.refresh_interval}s\n\nEnter new interval:",
@@ -251,8 +246,8 @@ class SyntheticMenuBarApp(rumps.App):
             except ValueError:
                 rumps.alert("Error", "Enter a number")
     
+    @rumps.clicked("⚙️ Settings")
     def settings(self, _):
-        """Settings - API key"""
         if self.api_key:
             masked = "*" * (len(self.api_key) - 4) + self.api_key[-4:] if len(self.api_key) > 4 else "*"
             message = f"Current: {masked}\n\nEnter new API key:"
@@ -271,8 +266,8 @@ class SyntheticMenuBarApp(rumps.App):
                 rumps.notification("Synthetic", "✓ Key Saved", "Refreshing...")
                 self.refresh(None)
     
+    @rumps.clicked("ℹ️ About")
     def about(self, _):
-        """About dialog"""
         mode = "Detailed" if self.detailed_view else "Simple"
         rumps.alert(
             "About",
@@ -281,11 +276,16 @@ class SyntheticMenuBarApp(rumps.App):
             f"Refresh: {self.refresh_interval}s"
         )
     
+    @rumps.clicked("🚪 Quit")
     def quit_app(self, _):
-        """Quit application"""
         rumps.quit_application()
 
 
-if __name__ == "__main__":
+def main():
+    """Entry point for command line execution"""
     app = SyntheticMenuBarApp()
     app.run()
+
+
+if __name__ == "__main__":
+    main()
