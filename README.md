@@ -1,97 +1,84 @@
 # Synthetic Credits Menu Bar App
 
-Real-time macOS menu bar monitor for Synthetic API usage. Auto-starts on login with virtual environment support.
+Real-time macOS menu bar monitor for Synthetic API credits.
+
+[![Homebrew](https://img.shields.io/badge/brew-install-blue.svg)](https://github.com/botbotbot133/homebrew-synthetic)
+
+## Quick Install (Homebrew) 🍺
+
+**One command installs everything:**
+
+```bash
+brew tap botbotbot133/synthetic && brew install synthetic-menubar
+```
+
+**Then run:**
+```bash
+synthetic-menubar --auto
+```
+
+That's it! The `--auto` flag will:
+- Configure your API key (asks if needed)
+- Install the LaunchAgent for auto-start
+- Start the app immediately
 
 ## Features
 
-- 🚀 **Menu bar icon** — Shows at top of screen (next to WiFi/clock)
-- ⏱️ **Configurable refresh** — Set your own interval (10s to unlimited)
-- 🔄 **Auto-start** — Automatically starts when you login (LaunchAgent)
-- 💡 **Live display** — Shows `⚡97% | 💵73%` (5-hour % | weekly %)
-- 🔘 **Click for details** — Full info on both metrics
-- 📊 **Smart notifications** — Alerts when data changes significantly
-- 💾 **Persistent settings** — Saves API key and refresh interval
-- 🐍 **Virtual environment** — Uses venv for isolated dependencies
+- 🚀 **Menu bar icon** — Shows `⚡97% | 💵73%` live in your menu bar
+- 📊 **Toggle detailed/simple view** — Click to switch between `⚡97%(5m)` and `⚡97%`
+- 🔄 **Auto-refresh** — Configurable interval (default: 2 minutes)
+- 🚀 **Auto-start** — LaunchAgent runs app on login
+- 🗝️ **Secure** — API key stored locally in `~/.synthetic_menubar_config.json`
 
-## Installation
+## Usage
 
-### Option 1: Homebrew (Recommended) 🍺
-
-The easiest way to install:
+### With `--auto` (Recommended)
 
 ```bash
-# Add the tap
-brew tap botbotbot133/synthetic
-
-# Install
-brew install synthetic-menubar
-
-# First time setup
-synthetic-menubar --setup
+# Does everything: setup + LaunchAgent + start app
+synthetic-menubar --auto
 ```
 
-**Enable auto-start:**
+### Manual Setup
+
 ```bash
+# 1. Configure API key
+synthetic-menubar --setup
+
+# 2. Run manually
+synthetic-menubar
+
+# 3. Enable auto-start (optional)
 mkdir -p ~/Library/LaunchAgents
 cp $(brew --prefix)/share/synthetic-menubar/com.botbotbot133.synthetic-menubar.plist \
    ~/Library/LaunchAgents/
 launchctl load ~/Library/LaunchAgents/com.botbotbot133.synthetic-menubar.plist
 ```
 
-### Option 2: Manual (with venv)
-
-See below for manual installation instructions.
-
 ## Requirements
 
 - macOS 10.14+
-- Python 3.7+
+- Python 3.7+ (installed automatically by Homebrew)
 
-## Manual Installation (with venv)
+## Menu Bar Display
 
-### 1. Clone & Setup venv
-
-```bash
-git clone https://github.com/botbotbot133/synthetic-menubar.git
-cd synthetic-menubar
-
-# Create virtual environment
-python3 -m venv venv
-
-# Activate venv
-source venv/bin/activate
-
-# Install dependencies
-pip install rumps
 ```
-
-### 2. Run
-
-```bash
-python3 synthetic_menubar_app.py
+┌──────────────────────────────┐
+│ 💳 ⚡97%(5m)|💵73%(2h)       │  ← Menu bar title
+└──────────────────────────────┘
+│ ⏰ 5-Hour: 97% (regen 5m)   │  ← Click for details
+│ 💰 Weekly: 73% (regen 2h)   │
+│ ──────────────────────────── │
+│ 📊 Detailed View: ✓ ON      │  ← Toggle mode
+│ ⏱️ Refresh Interval         │
+│ 🔄 Refresh Now              │
+│ ⚙️ Settings                 │
+└──────────────────────────────┘
 ```
-
-Click **Settings** → Enter API key, then **Refresh Interval** → Set to `120`.
-
-### 3. Auto-Start
-
-```bash
-chmod +x install_launchagent.sh
-./install_launchagent.sh
-```
-
-## Quick Start
-
-Once installed (via Homebrew or manual):
-
-1. The app shows in menu bar: `⚡97% | 💵73%`
-2. Click icon for settings and details
-3. Configure refresh interval (default: 120s)
-4. Enable auto-start for login
 
 ## Configuration
 
-Create config at `~/.synthetic_menubar_config.json`:
+Config file: `~/.synthetic_menubar_config.json`
 
 ```json
 {
@@ -101,37 +88,27 @@ Create config at `~/.synthetic_menubar_config.json`:
 }
 ```
 
-## Menu Bar Display
+Create manually or use `synthetic-menubar --setup`.
 
-```
-┌────────────────────────────────┐
-│ 💳 ⚡97% | 💵73%               │
-└────────────────────────────────┘
-│ ⏰ 5-Hour: --% (-- min)      │
-│ 💰 Weekly: --% (in --)      │
-│ ─────────────────────────────│
-│ 📊 Detailed View: ✓ ON       │
-│ ⏱️ Refresh Interval          │
-│ 🔄 Refresh Now               │
-│ ⚙️ Settings                  │
-└────────────────────────────────┘
+## Installation Methods
+
+### 1. Homebrew (Recommended)
+
+```bash
+brew tap botbotbot133/synthetic
+brew install synthetic-menubar
+synthetic-menubar --auto
 ```
 
-## What It Shows
+### 2. Manual (without Homebrew)
 
-- **5-Hour Limit**: Remaining % and time until regeneration
-- **Weekly Credits**: Remaining % and dollar amount
-- **Detailed/Simple toggle**: Switch between `⚡97%(5m)` and `⚡97%`
-
-## Files
-
-```
-synthetic-menubar/
-├── synthetic_menubar_app.py              # Main app
-├── setup.py                                # Package setup
-├── install_launchagent.sh                  # Auto-start setup
-├── com.botbotbot133.synthetic-menubar.plist  # LaunchAgent
-└── README.md
+```bash
+git clone https://github.com/botbotbot133/synthetic-menubar.git
+cd synthetic-menubar
+python3 -m venv venv
+source venv/bin/activate
+pip install rumps
+python3 synthetic_menubar_app.py --setup
 ```
 
 ## Uninstall
@@ -144,14 +121,16 @@ brew untap botbotbot133/synthetic
 
 **Manual:**
 ```bash
-launchctl unload ~/Library/LaunchAgents/com.botbotbot133.synthetic-menubar.plist
-rm ~/Library/LaunchAgents/com.botbotbot133.synthetic-menubar.plist
-cd ~ && rm -rf synthetic-menubar
+launchctl unload ~/Library/LaunchAgents/com.botbotbot133.synthetic-menubar.plist 2>/dev/null || true
+rm ~/Library/LaunchAgents/com.botbotbot133.synthetic-menubar.plist 2>/dev/null || true
+brew uninstall synthetic-menubar 2>/dev/null || true
 ```
 
 ## API
 
 Uses: `GET https://api.synthetic.new/v2/quotas`
+
+Get your API key at: https://synthetic.new/settings/api
 
 ## License
 
