@@ -445,10 +445,10 @@ if __name__ == "__main__":
             print("  synthetic-menubar --help   Show this help")
             print()
             print("Examples:")
-            print("  # First time setup")")
+            print("  # First time setup")
             print("  synthetic-menubar --setup")
             print()
-            print("  # Or use auto for everything")")
+            print("  # Or use auto for everything")
             print("  synthetic-menubar --auto")
         else:
             print(f"Unknown option: {sys.argv[1]}")
