@@ -1,26 +1,28 @@
 # Synthetic Credits Menu Bar App
 
-A lightweight macOS menu bar application that displays your Synthetic API credits and usage in real-time.
+A lightweight Python-based macOS menu bar application that displays your Synthetic API credits in real-time.
+
+![Menu Bar Screenshot](screenshot.png)
 
 ## Features
 
 - 📊 **Real-time credit display** — See remaining credits directly in your menu bar
-- 🔄 **Auto-refresh** — Updates automatically every 5 minutes (configurable)
-- 🔐 **Secure API key storage** — Uses macOS Keychain for safe credential storage
+- 🔄 **Auto-refresh** — Updates automatically every 5 minutes
+- 🔐 **Secure API key storage** — Saves API key to local config file
 - 📈 **Usage tracking** — View credits used today and monthly limit
-- ⚙️ **Settings panel** — Configure API key and refresh interval
-- 🎯 **Low credit alerts** — Visual indicator when credits are running low
+- ⚙️ **Settings** — Easy configuration via menu
+- 🚨 **Low credit alerts** — Visual warning when credits are below 100
+- 🐍 **Pure Python** — No compilation needed, runs directly
 
 ## Requirements
 
-- macOS 13.0 (Ventura) or later
-- Swift 5.9 or later
-- Xcode 15.0 or later (for building)
+- macOS 10.14 (Mojave) or later
+- Python 3.7 or later
 - A Synthetic API key (get yours at [synthetic.new](https://synthetic.new))
 
 ## Installation
 
-### Option 1: Build from Source (Recommended)
+### Option 1: Clone & Run (Recommended)
 
 1. **Clone the repository**
    ```bash
@@ -28,30 +30,30 @@ A lightweight macOS menu bar application that displays your Synthetic API credit
    cd synthetic-menubar
    ```
 
-2. **Open in Xcode**
+2. **Install dependencies**
    ```bash
-   open SyntheticMenuBarApp.xcodeproj
+   pip3 install -r requirements.txt
    ```
-   Or open `SyntheticMenuBarApp.swift` in Xcode directly
 
-3. **Build & Run**
-   - Press `Cmd+R` to build and run
-   - Or select **Product** → **Run** from the menu
+3. **Run the app**
+   ```bash
+   python3 synthetic_menubar.py
+   ```
 
-4. **First Launch Setup**
-   - Click the **Synthetic** menu bar icon (credit card icon)
-   - Select **Open Settings**
+4. **Set your API key**
+   - Click the **💳** menu bar icon
+   - Select **Settings**
    - Enter your Synthetic API key
    - Click **Save**
-   - The app will immediately fetch and display your credits
 
-### Option 2: Download Pre-built App (Coming Soon)
+### Option 2: Direct Download
 
-Pre-built releases will be available in the [Releases](https://github.com/botbotbot133/synthetic-menubar/releases) section.
+1. Download the latest release from [Releases](https://github.com/botbotbot133/synthetic-menubar/releases)
+2. Extract the zip file
+3. Install dependencies: `pip3 install rumps requests`
+4. Run: `python3 synthetic_menubar.py`
 
 ## How It Works
-
-### API Integration
 
 The app connects to the Synthetic API to fetch your current usage statistics:
 
@@ -66,41 +68,33 @@ The app connects to the Synthetic API to fetch your current usage statistics:
 
 ### Auto-Refresh
 
-By default, the app refreshes every **5 minutes**. You can configure this in settings:
-- 1 minute
-- 5 minutes (default)
-- 15 minutes
-- 30 minutes
-
-### Display
-
-The menu bar shows:
-- **Credits remaining** — Large number in the menubar
-- **Detailed view** — Click the icon for full usage breakdown
+The app automatically refreshes every **5 minutes** (300 seconds). You can manually refresh anytime by clicking **Refresh Now** in the menu.
 
 ### Visual Indicators
 
-- 🟢 **Green** — Healthy credit balance (>100 credits)
-- 🔴 **Red** — Low credits (<100 remaining)
+- 💳 **100+ credits** — Normal (credit card icon)
+- 🔴 **< 100 credits** — Low credits warning (red icon)
+- ❌ **No API key** — Configuration needed
+- ⏳ **Rate limited** — Too many requests
+- 🌐 **Offline** — Network connection issue
 
 ## Configuration
 
 ### Setting Your API Key
 
-1. Click the **Synthetic** menu bar icon
-2. Select **Open Settings**
-3. Enter your API key in the secure field
-4. Select your preferred refresh interval
-5. Click **Save**
+1. Click the **menu bar icon** (💳 or 🔴)
+2. Select **Settings**
+3. Enter your API key
+4. Click **Save**
 
-Your API key is stored securely in the macOS Keychain.
+Your API key is stored in `~/.synthetic_menubar_config.json`
 
 ### Finding Your API Key
 
 1. Log in to [synthetic.new](https://synthetic.new)
 2. Go to **Settings** → **API**
 3. Copy your API key
-4. Paste it into the app's settings
+4. Paste it into the app
 
 ## Architecture
 
@@ -108,78 +102,83 @@ Your API key is stored securely in the macOS Keychain.
 
 ```
 synthetic-menubar/
-├── SyntheticMenuBarApp.swift    # Main app & UI
-├── SyntheticAPIClient.swift    # API communication
-├── README.md                     # This file
-└── .gitignore                    # Git ignore rules
+├── synthetic_menubar.py    # Main application
+├── requirements.txt        # Python dependencies
+├── README.md              # This file
+└── .gitignore            # Git ignore rules
 ```
-
-### Key Components
-
-1. **SyntheticMenuBarApp.swift**
-   - `AppDelegate`: Manages menu bar item and popover
-   - `ContentView`: Main UI showing credits
-   - `SettingsView`: Configuration panel
-
-2. **SyntheticAPIClient.swift**
-   - `SyntheticAPIClient`: Handles API requests
-   - `QuotaResponse`: Data model for API response
-   - Error handling for network/API issues
 
 ### Dependencies
 
-- **SwiftUI** — Modern declarative UI framework
-- **Combine** — Reactive programming for async operations
-- **Foundation** — Core networking and data handling
+- **[rumps](https://pypi.org/project/rumps/)** — Ridiculously Uncomplicated macOS Python Statusbar apps
+- **[requests](https://pypi.org/project/requests/)** — HTTP library for API calls
+
+### Why Python?
+
+- ✅ Easy to modify and extend
+- ✅ No compilation needed
+- ✅ Cross-platform potential (Windows/Linux support could be added)
+- ✅ Quick development cycle
+- ✅ No Xcode or Apple Developer account needed
 
 ## Development
 
-### Building
+### Running from source
 
 ```bash
-# From the project directory
-swift build
-
-# Or open in Xcode and build
-xcodebuild -project SyntheticMenuBarApp.xcodeproj -scheme SyntheticMenuBarApp
+git clone https://github.com/botbotbot133/synthetic-menubar.git
+cd synthetic-menubar
+pip3 install -r requirements.txt
+python3 synthetic_menubar.py
 ```
 
-### Running Tests
+### Making changes
 
+Edit `synthetic_menubar.py` and re-run:
 ```bash
-swift test
+python3 synthetic_menubar.py
 ```
+
+No build process needed!
 
 ## Troubleshooting
 
-### "No API key configured" error
+### "No API key configured"
 
 - Open Settings and enter your Synthetic API key
 - Ensure the key is correct and active
+- Check `~/.synthetic_menubar_config.json` exists
 
 ### "Unauthorized" error
 
-- Check that your API key is valid
-- Verify the key hasn't expired
-- Try regenerating the key at [synthetic.new](https://synthetic.new)
+- Verify your API key is valid at [synthetic.new](https://synthetic.new)
+- Try regenerating the key if needed
 
-### Menu bar icon not showing
+### "Rate Limited"
 
-- Check that the app is running
-- Look for the **credit card icon** (💳) in the menu bar
-- Try quitting and reopening the app
+- Wait a few minutes before refreshing again
+- The free tier has rate limits
 
-### Not updating
+### App not showing in menu bar
 
-- Check your internet connection
-- Verify the refresh interval in settings
-- Click **Refresh Now** in the menu to force an update
+- Check if Python is running: `ps aux | grep synthetic_menubar`
+- Try running from Terminal to see errors
+- Ensure `rumps` is installed: `pip3 list | grep rumps`
+
+### Module not found errors
+
+```bash
+pip3 install rumps requests
+# Or
+pip3 install -r requirements.txt
+```
 
 ## Privacy & Security
 
+- **Local storage only** — API key stored in `~/.synthetic_menubar_config.json` (local file)
 - **No data collection** — The app only communicates with Synthetic's API
-- **Local storage** — Your API key is stored in the macOS Keychain
-- **No analytics** — No tracking or telemetry is implemented
+- **No analytics** — No tracking or telemetry
+- **Open source** — You can inspect all code
 
 ## Contributing
 
@@ -193,13 +192,23 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
+## Future Improvements
+
+Potential features for future versions:
+- [ ] macOS notification support for low credits
+- [ ] Configurable refresh intervals
+- [ ] Dark mode support
+- [ ] Historical usage graph
+- [ ] Multiple API key support
+- [ ] Windows/Linux support
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Acknowledgments
 
-- Built with [SwiftUI](https://developer.apple.com/xcode/swiftui/)
+- Built with [rumps](https://github.com/jaredks/rumps) — Ridiculously Uncomplicated macOS Statusbar apps
 - Powered by [Synthetic API](https://synthetic.new)
 - Inspired by the need for real-time API usage monitoring
 
