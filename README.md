@@ -1,105 +1,89 @@
-# Synthetic Credits Monitor
+# Synthetic Credits Menu Bar App
 
-Monitor Synthetic API credits in real-time — CLI or macOS Menu Bar.
+Real-time macOS menu bar monitor for Synthetic API usage.
 
-## Two Versions
+## Features
 
-### 1. CLI Version (No Dependencies)
-
-```bash
-python3 synthetic_menubar.py
-```
-
-Shows complete data once, then exits.
-
-### 2. Menu Bar Version (Recommended) 🍎
-
-**Requires:** `pip3 install rumps`
-
-```bash
-pip3 install rumps
-python3 synthetic_menubar_app.py
-```
-
-**Features:**
-- 🚀 Runs in menu bar (next to WiFi, clock)
-- 🔄 Auto-refresh every 2 minutes
-- 💬 Click icon for detailed info
-- ⚡ Shows both metrics in title:
-  - `⚡97% | 💵73%` (5-hour | weekly)
-
-## What It Shows
-
-Both versions display:
-- **5-Hour Limit** — Rolling rate limit (% remaining, next tick time)
-- **Weekly Credits** — Dollar amount ($34.89 / $48.00)
-- **Monthly Requests** — Request count vs limit
-- **Search (Hourly)** — Hourly search limits
-- **Free Tool Calls** — Free tier usage
-
-## Sample Output (CLI)
-
-```
-💳 Synthetic Credits Monitor
-
-💰 WEEKLY TOKEN LIMIT
-   💵 Max: $48.00
-   💵 Remaining: $34.89 (72.7%)
-   🔄 Next: 06.05.2026 07:36
-
-⏰ ROLLING 5-HOUR LIMIT
-   ✅ Remaining: 973.33 / 1000 (97.3%)
-   🔄 Next tick: 06.05.2026 06:30
-```
+- 🚀 **Menu bar icon** — Shows at top of screen (next to WiFi/clock)
+- ⏱️ **Configurable refresh** — Set your own interval (10s to unlimited)
+- 💡 **Live display** — Shows `⚡97% | 💵73%` (5-hour % | weekly %)
+- 🔘 **Click for details** — Full info on both metrics
+- 📊 **Smart notifications** — Alerts when data changes significantly
+- 💾 **Persistent settings** — Saves API key and refresh interval
 
 ## Installation
 
 ```bash
 git clone https://github.com/botbotbot133/synthetic-menubar.git
 cd synthetic-menubar
-
-# For Menu Bar
 pip3 install -r requirements.txt
-
-# Then run
-python3 synthetic_menubar_app.py  # Menu bar
-# OR
-python3 synthetic_menubar.py      # CLI
+python3 synthetic_menubar_app.py
 ```
+
+## First Run
+
+1. App starts in menu bar with "❌ Setup"
+2. Click **Settings** → Enter API key
+3. Click **Refresh Interval** → Set update frequency:
+   - `60` = 1 minute
+   - `120` = 2 minutes (default)
+   - `300` = 5 minutes
+
+## Menu Bar Display
+
+```
+┌────────────────────────────────┐
+│ 💳 ⚡97% | 💵73%               │  ← Menu bar
+└────────────────────────────────┘
+│ ⏰ 5-Hour Limit              │  ← Click for details
+│ 💰 Weekly Credits            │
+│ ─────────────────────────────│
+│ ⏱️ Refresh Interval: 120s   │  ← Click to change
+│ 🔄 Refresh Now               │  ← Manual refresh
+│ ⚙️ Settings                  │
+│ ℹ️ About                     │
+└────────────────────────────────┘
+```
+
+## Details Shown
+
+### 5-Hour Limit
+- Percentage remaining (e.g., 97%)
+- Requests remaining / max
+- Next tick time
+
+### Weekly Credits  
+- Dollar percentage (e.g., 73%)
+- Remaining / max dollars ($34.89 / $48.00)
+- Next regeneration time
+
+## Configure Refresh Interval
+
+1. Click **⏱️ Refresh Interval** in menu
+2. Enter seconds (e.g., `120` for 2 minutes)
+3. Timer restarts automatically
+
+**Examples:**
+- `60` = every 1 minute
+- `120` = every 2 minutes (default)
+- `300` = every 5 minutes
+- `30` = every 30 seconds (minimum: 10s)
 
 ## Files
 
-- `synthetic_menubar_app.py` → **Menu bar app** (rumps, auto-refresh)
-- `synthetic_menubar.py` → **CLI version** (no deps, run once)
-- `requirements.txt` → rumps dependency
+- `synthetic_menubar_app.py` — Main application
+- `requirements.txt` — Dependencies (rumps)
+- `~/.synthetic_menubar_config.json` — Settings stored here
+
+## Requirements
+
+- macOS 10.14+
+- Python 3.7+
+- `rumps` library (`pip3 install rumps`)
 
 ## API
 
 Uses: `GET https://api.synthetic.new/v2/quotas`
-
-## Menu Bar App Screenshot
-
-```
-┌─────────────────────────┐
-│ 💳 ⚡97% | 💵73%        │  ← Menu bar icon
-└─────────────────────────┘
-│ ⏰ 5-Hour Limit         │
-│ 💰 Weekly Credits      │
-│ ─────────────────────   │
-│ 🔄 Refresh Now          │
-│ ⚙️ Settings             │
-└─────────────────────────┘
-```
-
-## Why Two Versions?
-
-| Feature | CLI | Menu Bar |
-|---------|-----|----------|
-| Dependencies | ❌ None | ✅ rumps |
-| Auto-refresh | ❌ Manual | ✅ Every 2 min |
-| Menu bar icon | ❌ No | ✅ Yes |
-| Click for details | ❌ No | ✅ Yes |
-| Use case | Quick check | Monitoring |
 
 ## Troubleshooting
 
@@ -108,8 +92,9 @@ Uses: `GET https://api.synthetic.new/v2/quotas`
 pip3 install rumps
 ```
 
-### "No API key"
-Click **Settings** menu and enter key from [synthetic.new](https://synthetic.new)
+### App not showing
+- Check if running: Activity Monitor → search "Python"
+- Restart: `python3 synthetic_menubar_app.py`
 
 ## License
 

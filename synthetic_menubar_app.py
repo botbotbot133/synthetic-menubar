@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Synthetic Credits Menu Bar App
-Uses rumps to display in macOS menu bar
+Real-time macOS menu bar monitor for Synthetic API usage
 """
 
 import rumps
@@ -16,51 +16,64 @@ API_ENDPOINT = "https://api.synthetic.new/v2/quotas"
 
 class SyntheticMenuBarApp(rumps.App):
     def __init__(self):
+        # Load config first
+        self.config = self.load_config()
+        self.api_key = self.config.get('api_key', '')
+        self.refresh_interval = self.config.get('refresh_interval', 120)  # Default 2 minutes
+        
         super().__init__("💳", title="Loading...")
-        self.api_key = self.load_api_key()
         self.timer = None
         self.data = None
         
         # Build menu
         self.build_menu()
         
-        # Start auto-refresh (every 2 minutes)
+        # Start if API key exists
         if self.api_key:
-            self.timer = rumps.Timer(self.refresh, 120)
-            self.timer.start()
+            self.start_refresh_timer()
             self.refresh(None)  # Initial fetch
         else:
-            self.title = "❌ No Key"
+            self.title = "❌ Setup"
     
     def build_menu(self):
         """Build the menu structure"""
+        interval_text = f"⏱️ Refresh Interval: {self.refresh_interval}s"
         self.menu = [
             "⏰ 5-Hour Limit",
             "💰 Weekly Credits",
-            None,  # Separator
+            None,
+            interval_text,
             "🔄 Refresh Now",
             "⚙️ Settings",
-            None,  # Separator
+            None,
             "ℹ️ About",
             "🚪 Quit"
         ]
     
-    def load_api_key(self):
+    def load_config(self):
+        """Load config from file"""
         if os.path.exists(CONFIG_FILE):
             try:
                 with open(CONFIG_FILE, 'r') as f:
-                    config = json.load(f)
-                    return config.get('api_key', '')
+                    return json.load(f)
             except:
                 pass
-        return ''
+        return {'api_key': '', 'refresh_interval': 120}
     
-    def save_config(self, api_key):
-        config = {'api_key': api_key}
+    def save_config(self):
+        """Save current config"""
         with open(CONFIG_FILE, 'w') as f:
-            json.dump(config, f, indent=2)
+            json.dump(self.config, f, indent=2)
+    
+    def start_refresh_timer(self):
+        """Start or restart refresh timer with current interval"""
+        if self.timer:
+            self.timer.stop()
+        self.timer = rumps.Timer(self.refresh, self.refresh_interval)
+        self.timer.start()
     
     def fetch_data(self):
+        """Fetch data from Synthetic API"""
         if not self.api_key:
             return None, "No API key"
         
@@ -82,37 +95,54 @@ class SyntheticMenuBarApp(rumps.App):
     
     def refresh(self, _):
         """Refresh data and update menu bar"""
-        print("Fetching data...")
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] Refreshing...")
         data, error = self.fetch_data()
         
         if error:
             self.title = "❌ Error"
             print(f"Error: {error}")
         else:
+            old_data = self.data
             self.data = data
             self.update_display()
-            print("Data updated!")
+            
+            # Check if data changed significantly
+            if old_data and self.data_changed(old_data, data):
+                rumps.notification("Synthetic", "⚡ Credits Changed!", "Check your limits")
+            
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] Updated ✓")
+    
+    def data_changed(self, old, new):
+        """Check if important data changed"""
+        try:
+            old_rolling = old.get("rollingFiveHourLimit", {}).get("tickPercent", 0)
+            new_rolling = new.get("rollingFiveHourLimit", {}).get("tickPercent", 0)
+            old_weekly = old.get("weeklyTokenLimit", {}).get("percentRemaining", 0)
+            new_weekly = new.get("weeklyTokenLimit", {}).get("percentRemaining", 0)
+            
+            return old_rolling != new_rolling or old_weekly != new_weekly
+        except:
+            return False
     
     def update_display(self):
-        """Update menu bar title and menu based on data"""
+        """Update menu bar title based on data"""
         if not self.data:
             return
         
-        # Get key metrics
         rolling = self.data.get("rollingFiveHourLimit", {})
         weekly = self.data.get("weeklyTokenLimit", {})
         
         rolling_percent = rolling.get("tickPercent", 0) * 100 if rolling.get("tickPercent") else 0
         weekly_percent = weekly.get("percentRemaining", 0) if weekly.get("percentRemaining") else 0
         
-        # Update main title (show both percentages)
-        # Format: "5h: 97% | $: 73%"
+        # Update title: "⚡97% | 💵73%" 
         self.title = f"⚡{rolling_percent:.0f}% | 💵{weekly_percent:.0f}%"
         
-        # Force menu update
+        # Rebuild menu with fresh data
         self.build_menu()
     
-    def format_time(self, iso_string):
+    def format_time_short(self, iso_string):
+        """Format time to HH:MM"""
         try:
             dt = datetime.fromisoformat(iso_string.replace('Z', '+00:00'))
             return dt.strftime("%H:%M")
@@ -128,16 +158,16 @@ class SyntheticMenuBarApp(rumps.App):
             percent = rolling.get("tickPercent", 0) * 100
             remaining = rolling.get("remaining", 0)
             max_val = rolling.get("max", 0)
-            next_tick = self.format_time(rolling.get("nextTickAt", ""))
+            next_tick = self.format_time_short(rolling.get("nextTickAt", ""))
             
             rumps.alert(
                 "⏰ Rolling 5-Hour Limit",
-                f"Remaining: {percent:.1f}%\n"
-                f"Requests: {remaining:.1f} / {max_val}\n"
-                f"Next tick: {next_tick}"
+                f"✅ Remaining: {percent:.1f}%\n"
+                f"💳 Requests: {remaining:.1f} / {max_val}\n"
+                f"🔄 Next Tick: {next_tick}h"
             )
         else:
-            rumps.alert("No Data", "Please refresh first.")
+            rumps.alert("No Data", "Please wait for first refresh.")
     
     @rumps.clicked("💰 Weekly Credits")
     def show_weekly(self, _):
@@ -146,29 +176,64 @@ class SyntheticMenuBarApp(rumps.App):
             percent = weekly.get("percentRemaining", 0)
             remaining = weekly.get("remainingCredits", "N/A")
             max_credits = weekly.get("maxCredits", "N/A")
-            next_regen = self.format_time(weekly.get("nextRegenAt", ""))
+            next_regen = self.format_time_short(weekly.get("nextRegenAt", ""))
             
             rumps.alert(
                 "💰 Weekly Credits",
-                f"Remaining: {percent:.1f}%\n"
-                f"Credits: {remaining} / {max_credits}\n"
-                f"Next regen: {next_regen}"
+                f"✅ Remaining: {percent:.1f}%\n"
+                f"💵 Credits: {remaining} / {max_credits}\n"
+                f"🔄 Next Regen: {next_regen}h"
             )
         else:
-            rumps.alert("No Data", "Please refresh first.")
+            rumps.alert("No Data", "Please wait for first refresh.")
     
     @rumps.clicked("🔄 Refresh Now")
     def manual_refresh(self, _):
         self.refresh(None)
-        rumps.notification("Synthetic", "Refreshed!", "Data updated")
+        rumps.notification("Synthetic", "✓ Refreshed", f"Next: {self.refresh_interval}s")
+    
+    @rumps.clicked("⏱️ Refresh Interval")
+    def change_interval(self, _):
+        """Change auto-refresh interval"""
+        current = self.refresh_interval
+        
+        window = rumps.Window(
+            "Refresh Interval",
+            f"Current: {current} seconds ({current//60} min)\n\n"
+            "Enter new interval in seconds:\n"
+            "• 60 = 1 minute\n"
+            "• 120 = 2 minutes (default)\n"
+            "• 300 = 5 minutes\n"
+            "• 600 = 10 minutes",
+            default_text=str(current)
+        )
+        
+        response = window.run()
+        if response.clicked:
+            try:
+                new_interval = int(response.text.strip())
+                if new_interval >= 10:  # Minimum 10 seconds
+                    self.refresh_interval = new_interval
+                    self.config['refresh_interval'] = new_interval
+                    self.save_config()
+                    self.start_refresh_timer()
+                    rumps.notification(
+                        "Synthetic", 
+                        "✓ Interval Updated", 
+                        f"Now refreshing every {new_interval}s"
+                    )
+                else:
+                    rumps.alert("Error", "Minimum interval: 10 seconds")
+            except ValueError:
+                rumps.alert("Error", "Please enter a valid number")
     
     @rumps.clicked("⚙️ Settings")
     def settings(self, _):
         if self.api_key:
-            masked = "*" * (len(self.api_key) - 4) + self.api_key[-4:] if len(self.api_key) > 4 else ""
-            message = f"Current key: {masked}\n\nEnter new API key (or Cancel to keep):"
+            masked = "*" * (len(self.api_key) - 4) + self.api_key[-4:] if len(self.api_key) > 4 else "*"
+            message = f"Current: {masked}\n\nEnter new API key:"
         else:
-            message = "Enter your Synthetic API key:"
+            message = "Enter your API key:"
         
         window = rumps.Window("Settings", message, default_text="")
         response = window.run()
@@ -177,8 +242,9 @@ class SyntheticMenuBarApp(rumps.App):
             new_key = response.text.strip()
             if new_key:
                 self.api_key = new_key
-                self.save_config(new_key)
-                rumps.notification("Synthetic", "✓ API Key Saved", "Refreshing...")
+                self.config['api_key'] = new_key
+                self.save_config()
+                rumps.notification("Synthetic", "✓ Key Saved", "Refreshing...")
                 self.refresh(None)
     
     @rumps.clicked("ℹ️ About")
@@ -186,11 +252,12 @@ class SyntheticMenuBarApp(rumps.App):
         rumps.alert(
             "Synthetic Credits Monitor",
             "Version 1.0\n\n"
-            "Menu bar app for Synthetic API usage.\n\n"
-            "Shows:\n"
-            "• 5-hour limit %\n"
+            "Real-time Synthetic API usage.\n\n"
+            "Shows in menu bar:\n"
+            "• 5-hour rate limit %\n"
             "• Weekly credits %\n"
-            "• Regeneration times\n\n"
+            "• Auto-refresh\n\n"
+            f"Refresh interval: {self.refresh_interval}s\n"
             "GitHub: botbotbot133/synthetic-menubar"
         )
     
