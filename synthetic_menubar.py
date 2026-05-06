@@ -54,9 +54,9 @@ def fetch_credits(api_key):
 def main():
     config = load_config()
     
-    print("="*50)
+    print("="*60)
     print("Synthetic Credits Monitor")
-    print("="*50)
+    print("="*60)
     
     # Check/ask for API key
     if not config.get("api_key"):
@@ -80,42 +80,66 @@ def main():
         return
     
     # Show COMPLETE raw response
-    print("\n" + "="*50)
+    print("\n" + "="*60)
     print("📄 COMPLETE API RESPONSE (RAW JSON):")
-    print("="*50)
+    print("="*60)
     print(json.dumps(data, indent=2))
-    print("="*50)
+    print("="*60)
     
-    # Parse and display formatted output
+    # Parse different sections
+    print("\n" + "="*60)
+    print("📊 PARSED SUBSCRIPTION DATA")
+    print("="*60)
+    
+    # 1. Monthly Requests (subscription)
     if "subscription" in data:
         sub = data["subscription"]
-        limit = sub.get("limit", "N/A")
-        requests = sub.get("requests", 0)
-        renews_at = sub.get("renewsAt", "N/A")
-        
-        # Calculate remaining
-        try:
-            remaining = limit - requests if isinstance(limit, int) and isinstance(requests, int) else "N/A"
-        except:
-            remaining = "N/A"
-        
-        print("\n" + "="*50)
-        print("📊 PARSED SUBSCRIPTION STATUS")
-        print("="*50)
-        print(f"\n💳 Monthly limit: {limit} requests")
-        print(f"📈 Used this period: {requests} requests")
-        print(f"✅ Remaining: {remaining} requests")
-        print(f"🔄 Renews at: {format_date(renews_at)}")
-        print("="*50)
-        
-        # Warning if low
-        if isinstance(remaining, int) and remaining < 20:
-            print("\n⚠️  WARNING: Low credits remaining!")
-        
-        print("\n✓ Data retrieved successfully!")
-    else:
-        print("\n⚠️  Response doesn't contain 'subscription' key.")
-        print("   Check the raw JSON above to see what was returned.")
+        print(f"\n📅 MONTHLY REQUESTS")
+        print(f"   💳 Limit: {sub.get('limit', 'N/A')} requests/month")
+        print(f"   📈 Used: {sub.get('requests', 0)} requests")
+        remaining = sub.get('limit', 0) - sub.get('requests', 0)
+        print(f"   ✅ Remaining: {remaining} requests")
+        print(f"   🔄 Renews: {format_date(sub.get('renewsAt', 'N/A'))}")
+    
+    # 2. Search (hourly)
+    if "search" in data and "hourly" in data["search"]:
+        search = data["search"]["hourly"]
+        print(f"\n🔍 SEARCH (Hourly)")
+        print(f"   💳 Limit: {search.get('limit', 'N/A')}/hour")
+        print(f"   📈 Used: {search.get('requests', 0)}")
+        print(f"   🔄 Renews: {format_date(search.get('renewsAt', 'N/A'))}")
+    
+    # 3. Weekly Token Limit (DOLLAR AMOUNTS!)
+    if "weeklyTokenLimit" in data:
+        token = data["weeklyTokenLimit"]
+        print(f"\n💰 WEEKLY TOKEN LIMIT (Credits in $)")
+        print(f"   💵 Max Credits: {token.get('maxCredits', 'N/A')}")
+        print(f"   💵 Remaining: {token.get('remainingCredits', 'N/A')}")
+        print(f"   📊 Percent: {token.get('percentRemaining', 0):.1f}%")
+        print(f"   🔄 Next Regen: {format_date(token.get('nextRegenAt', 'N/A'))}")
+        print(f"   ➕ Next Regen Amount: {token.get('nextRegenCredits', 'N/A')}")
+    
+    # 4. Rolling 5 Hour Limit
+    if "rollingFiveHourLimit" in data:
+        rolling = data["rollingFiveHourLimit"]
+        print(f"\n⏰ ROLLING 5-HOUR LIMIT")
+        print(f"   💳 Max: {rolling.get('max', 'N/A')}")
+        print(f"   ✅ Remaining: {rolling.get('remaining', 'N/A'):.2f}")
+        print(f"   📊 Tick Percent: {rolling.get('tickPercent', 0)}")
+        print(f"   🔄 Next Tick: {format_date(rolling.get('nextTickAt', 'N/A'))}")
+        print(f"   🚫 Limited: {'YES' if rolling.get('limited') else 'NO'}")
+    
+    # 5. Free Tool Calls
+    if "freeToolCalls" in data:
+        free = data["freeToolCalls"]
+        print(f"\n🛠️  FREE TOOL CALLS")
+        print(f"   💳 Limit: {free.get('limit', 'N/A')}")
+        print(f"   📈 Used: {free.get('requests', 0)}")
+        print(f"   🔄 Renews: {format_date(free.get('renewsAt', 'N/A'))}")
+    
+    print("\n" + "="*60)
+    print("✓ All data retrieved successfully!")
+    print("="*60)
 
 if __name__ == "__main__":
     main()
