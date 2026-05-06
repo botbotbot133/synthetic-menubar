@@ -45,8 +45,7 @@ def fetch_credits(api_key):
     
     try:
         with urllib.request.urlopen(req, timeout=10) as response:
-            data = json.loads(response.read().decode('utf-8'))
-            return data, None
+            return json.loads(response.read().decode('utf-8')), None
     except urllib.error.HTTPError as e:
         return None, f"HTTP {e.code}"
     except Exception as e:
@@ -80,7 +79,14 @@ def main():
             print("💡 Check: Is your API key correct?")
         return
     
-    # Parse the response
+    # Show COMPLETE raw response
+    print("\n" + "="*50)
+    print("📄 COMPLETE API RESPONSE (RAW JSON):")
+    print("="*50)
+    print(json.dumps(data, indent=2))
+    print("="*50)
+    
+    # Parse and display formatted output
     if "subscription" in data:
         sub = data["subscription"]
         limit = sub.get("limit", "N/A")
@@ -94,7 +100,7 @@ def main():
             remaining = "N/A"
         
         print("\n" + "="*50)
-        print("📊 SUBSCRIPTION STATUS")
+        print("📊 PARSED SUBSCRIPTION STATUS")
         print("="*50)
         print(f"\n💳 Monthly limit: {limit} requests")
         print(f"📈 Used this period: {requests} requests")
@@ -108,8 +114,8 @@ def main():
         
         print("\n✓ Data retrieved successfully!")
     else:
-        print("\n⚠️  Unexpected response format:")
-        print(json.dumps(data, indent=2))
+        print("\n⚠️  Response doesn't contain 'subscription' key.")
+        print("   Check the raw JSON above to see what was returned.")
 
 if __name__ == "__main__":
     main()
