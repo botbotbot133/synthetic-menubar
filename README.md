@@ -53,8 +53,17 @@ python3 synthetic_menubar_app.py
 The LaunchAgent **requires** the venv. Our install script auto-detects it:
 
 ```bash
-# Make sure you're in the repo directory with venv
+# Make the install script executable
+chmod +x install_launchagent.sh
+
+# Run the install script
 ./install_launchagent.sh
+```
+
+**Alternative** (if chmod doesn't work):
+```bash
+# Run with bash directly (no chmod needed)
+bash install_launchagent.sh
 ```
 
 The script will:
@@ -84,6 +93,7 @@ cd ~/synthetic-menubar
 python3 -m venv venv
 source venv/bin/activate
 pip install rumps
+chmod +x install_launchagent.sh
 ./install_launchagent.sh
 ```
 
@@ -118,8 +128,13 @@ pip install rumps
 The included `install_launchagent.sh` script sets up auto-start:
 
 ```bash
-# Auto-detects venv and configures LaunchAgent
+chmod +x install_launchagent.sh
 ./install_launchagent.sh
+```
+
+Or run directly with bash:
+```bash
+bash install_launchagent.sh
 ```
 
 **Features:**
@@ -172,6 +187,18 @@ synthetic-menubar/
 
 ## Troubleshooting
 
+### "permission denied: ./install_launchagent.sh"
+You need to make the script executable:
+```bash
+chmod +x install_launchagent.sh
+./install_launchagent.sh
+```
+
+Or run with bash:
+```bash
+bash install_launchagent.sh
+```
+
 ### "No virtual environment found"
 ```bash
 # Create venv
@@ -182,7 +209,8 @@ python3 -m venv venv
 source venv/bin/activate
 pip install rumps
 
-# Re-run install
+# Make executable and install
+chmod +x install_launchagent.sh
 ./install_launchagent.sh
 ```
 
@@ -193,6 +221,7 @@ cat /tmp/synthetic-menubar.error.log
 
 # Common issue: venv not detected
 # Re-run install script:
+chmod +x install_launchagent.sh
 ./install_launchagent.sh
 ```
 
