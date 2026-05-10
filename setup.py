@@ -5,7 +5,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="synthetic-menubar",
-    version="1.0.5",
+    version="1.0.6",
     description="Menu bar app for monitoring Synthetic API credits",
     long_description="A macOS menu bar app that displays Synthetic API usage in real-time.",
     packages=find_packages(),
@@ -24,4 +24,5 @@ setup(
     author="botbotbot133",
     license="MIT",
     include_package_data=True,
+    zip_safe=False,  # Important for macOS menu bar apps
 )

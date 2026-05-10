@@ -1,0 +1,7 @@
+include README.md
+include LICENSE
+include requirements.txt
+include com.botbotbot133.synthetic-menubar.plist
+include install_launchagent.sh
+include fix_launchagent.sh
+recursive-include synthetic_menubar *.py
